@@ -19,7 +19,7 @@
       pad(date.getDate());
     const time =
       pad(date.getHours()) + pad(date.getMinutes()) + pad(date.getSeconds());
-    return `gpx-editor-map-screen_${day}-${time}.png`;
+    return `map-screen_${day}-${time}.png`;
   }
 
   function selectionRect(start, end, size) {
