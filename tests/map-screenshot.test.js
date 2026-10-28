@@ -1,9 +1,11 @@
-const { readFileSync } = require("node:fs");
-const path = require("node:path");
-const vm = require("node:vm");
-const test = require("node:test");
-const assert = require("node:assert/strict");
-
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  selectionRect,
+  renderMapCrop,
+  MapScreenshot,
+  screenshotFileName,
+} from "../src/features/map/services/MapScreenshot.js";
 function environment() {
   const draws = [],
     text = [],
@@ -39,8 +41,7 @@ function environment() {
       },
     };
   }
-  const context = vm.createContext({
-    GPXEditor: {},
+  const context = {
     window: { devicePixelRatio: 2 },
     clearTimeout() {},
     setTimeout() {
@@ -57,11 +58,8 @@ function environment() {
     cancelAnimationFrame(id) {
       frames.delete(id);
     },
-  });
-  vm.runInContext(
-    readFileSync(path.join(__dirname, "../map-screenshot.js"), "utf8"),
-    context,
-  );
+  };
+  for (const [name, value] of Object.entries(context)) globalThis[name] = value;
   const tile = {
     tagName: "IMG",
     complete: true,
@@ -99,7 +97,7 @@ function environment() {
     append() {},
   };
   return {
-    api: context.GPXEditor,
+    api: { selectionRect, renderMapCrop, MapScreenshot, screenshotFileName },
     element,
     container,
     tile,
@@ -179,14 +177,12 @@ test("screenshot cancellation restores the exact navigation modes without editin
     };
   }
   let prepared = 0;
-  const capture = new api.MapScreenshot(
-    map,
-    container,
-    element(),
-    element(),
-    () => prepared++,
-    () => {},
-  );
+  const capture = new api.MapScreenshot(map, container, {
+    beforeExport: () => prepared++,
+    notify: () => {},
+    onStateChange: () => {},
+    onFeedback: () => {},
+  });
   capture.start();
   assert.equal(capture.active, true);
   assert.equal(prepared, 1);
@@ -208,8 +204,52 @@ test("PNG filenames use local date/time with zero-padded components", () => {
     api.screenshotFileName(new Date(2027, 0, 2, 0, 0, 0)),
     "map-screen_20270102-000000.png",
   );
-  assert.match(
-    api.screenshotFileName(),
-    /^map-screen_\d{8}-\d{6}\.png$/,
+  assert.match(api.screenshotFileName(), /^map-screen_\d{8}-\d{6}\.png$/);
+});
+
+test("cancelled asynchronous PNG export does not publish a stale error", async () => {
+  const { container, element } = environment();
+  let finishBlob,
+    errors = 0;
+  globalThis.requestAnimationFrame = (callback) => {
+    callback();
+    return 1;
+  };
+  globalThis.document.createElement = () => ({
+    ...element(),
+    hasPointerCapture: () => false,
+    toBlob: (callback) => {
+      finishBlob = callback;
+    },
+  });
+  const capture = new MapScreenshot(
+    { on() {}, stop() {}, getSize: () => ({ x: 256, y: 256 }) },
+    container,
+    {
+      beforeExport() {},
+      notify: (_, error) => {
+        if (error) errors++;
+      },
+      onStateChange() {},
+      onFeedback() {},
+    },
   );
+  capture.start();
+  capture.pointer = 1;
+  capture.origin = { left: 10, top: 20 };
+  capture.startPoint = { x: 0, y: 0 };
+  const pending = capture.pointerUp({
+    pointerId: 1,
+    clientX: 110,
+    clientY: 120,
+    preventDefault() {},
+    stopPropagation() {},
+  });
+  await Promise.resolve();
+  assert.equal(typeof finishBlob, "function");
+  capture.cancel();
+  finishBlob(null);
+  await pending;
+  assert.equal(errors, 0);
+  assert.equal(capture.active, false);
 });

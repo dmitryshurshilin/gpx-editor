@@ -1,7 +1,9 @@
 # GPX Editor
 
 - This is the canonical GPX Editor repository. Make subsequent changes here, not in prior chat output folders.
-- The application uses buildless HTML, CSS and JavaScript; runtime files live at the repository root.
+- The application uses React with Vite and ES modules. Runtime source is in `src/`; static assets are in `public/`.
 - Keep GPX processing and image export in the browser.
-- Run `node --test tests/map-screenshot.test.cjs` for screenshot-related changes.
+- Keep domain logic independent of React and Leaflet. Use EditorStore for user actions; let Leaflet own only its map container.
+- Preserve Canvas rendering and avoid React updates or XML serialization on pointer-move events.
+- Use Node.js 20.19+ or 22.12+. Run `npm test`, `npm run build`, and `npm run format:check` before committing.
 - Use Semantic Commit Messages, such as `fix: ...` or `feat: ...`.
