@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>GPX Editor — редактор GPX</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link rel="icon" type="image/svg+xml" href="logo.svg" />
+    <link rel="stylesheet" href="style.css" />
+    <script
+      defer
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    ></script>
+    <script defer src="geometry.js"></script>
+    <script defer src="autocorrect.js"></script>
+    <script defer src="track-model.js"></script>
+    <script defer src="point-layer.js"></script>
+    <script defer src="basemap-layers.js"></script>
+    <script defer src="route-edit-preview.js"></script>
+    <script defer src="map-screenshot.js"></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="./"
+        ><img
+          class="brand-logo"
+          src="logo.svg"
+          alt=""
+          width="44"
+          height="44"
+        /><span>GPX Editor</span></a
+      ><button id="help-open" class="help-link" aria-haspopup="dialog">
+        Как пользоваться?
+      </button>
+    </header>
+    <main>
+      <div class="heading">
+        <div><h1>Скорректируйте трек</h1></div>
+        <button id="download" class="primary" disabled>↓ Скачать GPX</button>
+      </div>
+      <div class="workspace">
+        <aside>
+          <section class="panel">
+            <div class="step">01 <span>Загрузите трек</span></div>
+            <label class="dropzone" id="drop"
+              ><input
+                type="file"
+                id="file"
+                accept=".gpx,application/gpx+xml,application/xml,text/xml"
+              /><span class="upload-icon">↥</span
+              ><strong>Перетащите GPX сюда</strong
+              ><span>или <u>выберите файл</u></span
+              ><small>.gpx · до 20 МБ</small></label
+            ><button class="text-button" id="demo">
+              Попробовать на примере ↗
+            </button>
+            <div id="file-info" hidden>
+              <span class="file-symbol">GPX</span>
+              <div>
+                <strong id="filename"></strong><small id="filesize"></small>
+              </div>
+              <span class="check">✓</span>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="step">02 <span>Очистите маршрут</span></div>
+            <p class="instruction">
+              Нажмите на линию, чтобы добавить точку. Перетащите точку, чтобы
+              изменить маршрут. Дважды нажмите на точку для удаления или
+              включите выделение.
+            </p>
+            <button id="autocorrect" class="autocorrect" disabled>
+              ✦ Автокоррекция · 500 м
+            </button>
+            <p class="auto-warning">
+              <span aria-hidden="true">⚠</span> Автокоррекция не всегда работает
+              точно. Проверьте результат на карте.
+            </p>
+            <p class="auto-help">
+              Находит вылет между двумя скачками больше 500 м. Возврат
+              подтверждается следующим интервалом меньше 500 м.
+            </p>
+            <div class="mode-switch">
+              <button id="pan" class="active">✥ Редактирование</button
+              ><button id="select">▧ Выделение</button>
+            </div>
+            <div class="selection-info">
+              <span>Выбрано точек</span><strong id="selected">0</strong>
+            </div>
+            <div class="actions">
+              <button id="reset" disabled>Сбросить</button
+              ><button id="remove" class="danger" disabled>
+                Удалить точки
+              </button>
+            </div>
+            <div class="tip">
+              <span>↳</span>
+              <p>
+                Соседние точки соединятся автоматически — маршрут останется
+                непрерывным.
+              </p>
+            </div>
+          </section>
+          <section class="help">
+            <span class="help-icon">◎</span>
+            <div>
+              <p>
+                Файл обрабатывается на устройстве и не загружается на сервер.
+              </p>
+            </div>
+          </section>
+        </aside>
+        <section class="map-panel">
+          <div class="map-top">
+            <span><i class="green-dot"></i> Карта маршрута</span>
+            <div class="map-tools">
+              <button id="fit">⌖ Показать весь трек</button
+              ><button
+                id="fullscreen"
+                disabled
+                title="Только редактирование. Выход из полного экрана — Esc."
+              >
+                ⛶ На весь экран
+              </button>
+            </div>
+          </div>
+          <div class="map-wrap">
+            <div class="map-floating-tools">
+              <button
+                id="map-screenshot"
+                aria-pressed="false"
+                disabled
+                title="Выделить область карты и сохранить PNG"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  aria-hidden="true"
+                >
+                  <path d="M9 5 7 8H3v12h18V8h-4l-2-3Z" />
+                  <circle cx="12" cy="14" r="4" />
+                </svg>
+                <span class="screenshot-button-label">Скриншот области</span>
+              </button>
+              <div
+                class="basemap-switch"
+                role="group"
+                aria-label="Отображение карты"
+              >
+                <button
+                  id="basemap-street"
+                  class="active"
+                  aria-pressed="true"
+                  disabled
+                >
+                  Схема
+                </button>
+                <button id="basemap-satellite" aria-pressed="false" disabled>
+                  Спутник
+                </button>
+              </div>
+            </div>
+            <div
+              id="capture-status"
+              class="capture-feedback"
+              role="status"
+              aria-live="polite"
+            ></div>
+            <button id="fullscreen-exit">
+              Вернуться в нормальный режим (Esc)
+            </button>
+            <div id="map" aria-label="Карта маршрута"></div>
+            <div id="map-hint">Загрузите трек или откройте пример</div>
+            <div class="legend">
+              <span><i></i> Маршрут</span><span><i></i> К удалению</span>
+            </div>
+          </div>
+          <div class="stats">
+            <div><small>ТОЧЕК В ТРЕКЕ</small><strong id="count">—</strong></div>
+            <div>
+              <small>ДЛИНА МАРШРУТА</small><strong id="distance">—</strong>
+            </div>
+            <div>
+              <small>УДАЛЕНО ТОЧЕК</small><strong id="deleted">0</strong>
+            </div>
+            <button id="undo" disabled>↶ Отменить изменение</button>
+          </div>
+        </section>
+      </div>
+      <section class="code-panel">
+        <div class="code-heading">
+          <div>
+            <span class="code-icon">〈/〉</span><strong>GPX-код</strong
+            ><span class="badge" id="code-state">Нет файла</span>
+          </div>
+          <div class="code-actions">
+            <button id="copy" class="code-action" disabled>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="8" y="8" width="12" height="13" rx="2" />
+                <path
+                  d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"
+                /></svg
+              ><span>Скопировать код</span></button
+            ><button id="download-code" class="code-action" disabled>
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.7"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path
+                  d="M12 3v12m-5-5 5 5 5-5M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"
+                /></svg
+              ><span>Скачать GPX-трек</span>
+            </button>
+          </div>
+        </div>
+        <textarea
+          id="xml"
+          readonly
+          spellcheck="false"
+          aria-label="GPX-код трека"
+          placeholder="Здесь появится GPX-код загруженного трека…"
+        ></textarea>
+        <div class="code-footer">
+          <span>Координаты, время и метаданные сохраняются при коррекции</span
+          ><span>UTF-8 · GPX</span>
+        </div>
+      </section>
+      <div id="message" role="status" aria-live="polite"></div>
+      <footer><span>GPX Editor</span></footer>
+    </main>
+    <dialog id="help-dialog" aria-labelledby="help-title">
+      <div class="dialog-heading">
+        <h2 id="help-title">Как пользоваться GPX Editor</h2>
+        <button id="help-close" aria-label="Закрыть инструкцию">×</button>
+      </div>
+      <ol class="help-steps">
+        <li>
+          <strong>Загрузите GPX.</strong> Выберите файл или перетащите его в
+          область загрузки. Для знакомства нажмите «Попробовать на примере».
+          Трек обрабатывается в браузере и не отправляется на сервер.
+        </li>
+        <li>
+          <strong>Добавьте и переместите точки.</strong> В режиме
+          «Редактирование» нажмите на линию между точками, чтобы добавить новую.
+          Перетащите точку мышью, чтобы изменить её координаты. Исходный участок
+          во время перемещения показывается полупрозрачным пунктиром, новое
+          положение — сплошной линией.
+        </li>
+        <li>
+          <strong>Удалите одну точку.</strong> Дважды нажмите на неё в режиме
+          «Редактирование». Соседние точки соединятся прямым отрезком внутри
+          того же сегмента.
+        </li>
+        <li>
+          <strong>Удалите фрагмент.</strong> Включите «Выделение», обведите
+          точки рамкой и нажмите «Удалить точки». «Сбросить» снимает выделение.
+        </li>
+        <li>
+          <strong>Попробуйте автокоррекцию.</strong> Кнопка «Автокоррекция · 500
+          м» удаляет фрагмент между скачками более 500 м, если после второго
+          скачка следующий интервал меньше 500 м. Незавершённые вылеты
+          сохраняются. Результат нужно проверить: автокоррекция может ошибаться.
+        </li>
+        <li>
+          <strong>Разверните карту.</strong> Кнопки «Схема» и «Спутник» в правом
+          верхнем углу карты переключают фон, сохраняя трек, масштаб и
+          выделение. В режиме редактирования загруженного трека нажмите «На весь
+          экран». Можно добавлять и перемещать точки, удаление отключено. Для
+          выхода нажмите «Вернуться в нормальный режим (Esc)» или клавишу Esc.
+        </li>
+        <li>
+          <strong>Сохраните результат.</strong> Для снимка карты нажмите
+          «Скриншот области», обведите область мышью — PNG сохранится на
+          устройство. Кнопки интерфейса в снимок не попадают; подпись источника
+          карты сохраняется. Esc отменяет выделение для снимка. «Отменить
+          изменение» отменяет последнее добавление, перемещение, удаление или
+          автокоррекцию. Исправленный код виден под картой. Нажмите «Скачать
+          GPX», чтобы сохранить файл.
+        </li>
+      </ol>
+      <p class="help-note">
+        Для загрузки карты нужен интернет. Закрыть инструкцию можно кнопкой ×,
+        клавишей Esc или нажатием вне окна.
+      </p>
+    </dialog>
+  </body>
+</html>
