@@ -126,6 +126,18 @@ export function MapPanel() {
           <span>
             <i></i> К удалению
           </span>
+          {state.autocorrectPreview && (
+            <>
+              <span className="preview-legend">
+                <i />
+                Вылеты
+              </span>
+              <span className="connection-legend">
+                <i />
+                Соединение
+              </span>
+            </>
+          )}
         </div>
       </div>
       <div className="stats">

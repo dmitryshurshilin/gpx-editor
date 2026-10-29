@@ -26,3 +26,27 @@ export function findJumpPoints(groups, distanceBetween, threshold = 500) {
   }
   return rejected;
 }
+
+// Describe the original excursion and the connection that deletion would create.
+// Coordinates are copied; previewing never mutates GPX nodes or track groups.
+export function describeRejectedFragments(groups, rejected) {
+  const fragments = [];
+  const coordinates = (points) => points.map((point) => [point.lat, point.lng]);
+  for (const group of groups) {
+    let index = 0;
+    while (index < group.length) {
+      if (!rejected.has(group[index].node)) {
+        index++;
+        continue;
+      }
+      const start = index;
+      while (index < group.length && rejected.has(group[index].node)) index++;
+      if (start === 0 || index === group.length) continue;
+      fragments.push({
+        excursion: coordinates(group.slice(start - 1, index + 1)),
+        connection: coordinates([group[start - 1], group[index]]),
+      });
+    }
+  }
+  return fragments;
+}

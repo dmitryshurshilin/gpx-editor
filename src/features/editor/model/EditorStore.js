@@ -1,5 +1,8 @@
 import { TrackModel, parseGPX } from "../../../domain/gpx/TrackModel.js";
-import { findJumpPoints } from "../../../domain/gpx/autocorrect.js";
+import {
+  findJumpPoints,
+  describeRejectedFragments,
+} from "../../../domain/gpx/autocorrect.js";
 import { distanceBetween } from "../../../domain/gpx/geometry.js";
 import { createDemoGPX } from "../../../domain/gpx/demo.js";
 import { saveBlob } from "../../../shared/lib/download.js";
@@ -11,6 +14,7 @@ const MAX_FILE_BYTES = 20 * 1024 * 1024;
 export class EditorStore {
   constructor() {
     this.model = new TrackModel();
+    this.autocorrectPreview = null;
     this.mode = "pan";
     this.fullscreen = false;
     this.basemap = "street";
@@ -53,6 +57,12 @@ export class EditorStore {
       deletedCount: model.deletedCount,
       distance: model.totalDistance,
       canUndo: !!model.history.length,
+      autocorrectPreview: this.autocorrectPreview
+        ? Object.freeze({
+            pointCount: this.autocorrectPreview.nodes.size,
+            fragmentCount: this.autocorrectPreview.fragments.length,
+          })
+        : null,
       canAutocorrect: model.groups.some((group) => group.length > 1),
       mode: this.mode,
       fullscreen: this.fullscreen,
@@ -95,6 +105,7 @@ export class EditorStore {
   loadText(text, name, size) {
     const doc = parseGPX(text); // Validate before changing the current document.
     this.prepare();
+    this.autocorrectPreview = null;
     this.model.load(doc, name);
     this.fileSize = size;
     this.status = {
@@ -186,6 +197,7 @@ export class EditorStore {
     this.prepare();
     const count = this.model.remove(indices);
     if (count) {
+      this.autocorrectPreview = null;
       this.status = {
         text: `Удалено точек: ${count}. Соседние точки внутри сегмента соединены.`,
         error: false,
@@ -196,6 +208,7 @@ export class EditorStore {
   }
   insert(next, position) {
     this.model.insertBefore(next, position);
+    this.autocorrectPreview = null;
     this.status = {
       text: "Точка добавлена. Перетащите её, чтобы уточнить положение.",
       error: false,
@@ -204,37 +217,78 @@ export class EditorStore {
   }
   commitMove(point, lat, lon) {
     this.model.commitMove(point, lat, lon);
+    this.autocorrectPreview = null;
     this.status = { text: "Координаты точки обновлены в GPX.", error: false };
     this.emit("move");
   }
   undo() {
     this.prepare();
     if (!this.model.undo()) return;
+    this.autocorrectPreview = null;
     this.status = { text: "Последнее изменение отменено.", error: false };
     this.emit("geometry");
   }
   autocorrect() {
-    if (!this.model.doc) return;
+    if (!this.model.doc || this.fullscreen) return;
     this.prepare();
-    const rejected = findJumpPoints(this.model.groups, distanceBetween, 500);
-    this.model.lastAutoRemoved = rejected;
-    if (!rejected.size) {
-      this.setStatus(
-        "Автокоррекция: завершённых вылетов с подтверждённым возвратом не найдено.",
-      );
-      return;
+    const nodes = findJumpPoints(this.model.groups, distanceBetween, 500);
+    this.autocorrectPreview = null;
+    if (!nodes.size) {
+      this.status = {
+        text: "Автокоррекция: завершённых вылетов с подтверждённым возвратом не найдено.",
+        error: false,
+      };
+    } else {
+      const indices = new Set();
+      this.model.points.forEach((point, index) => {
+        if (nodes.has(point.node)) indices.add(index);
+      });
+      const fragments = describeRejectedFragments(this.model.groups, nodes);
+      this.autocorrectPreview = {
+        nodes,
+        indices,
+        fragments,
+        version: this.model.version,
+      };
+      this.status = {
+        text: `Предпросмотр: найдено точек — ${nodes.size}. Проверьте выделенные фрагменты и подтвердите удаление.`,
+        error: false,
+      };
     }
-    const indices = new Set(
-      this.model.points.flatMap((point, i) =>
-        rejected.has(point.node) ? [i] : [],
-      ),
-    );
-    const count = this.model.remove(indices, true);
+    this.emit("autocorrect-preview");
+  }
+  cancelAutocorrectPreview(silent = false) {
+    if (!this.autocorrectPreview) return;
+    this.autocorrectPreview = null;
+    if (!silent)
+      this.status = {
+        text: "Предпросмотр отменён. Трек не изменён.",
+        error: false,
+      };
+    this.emit("autocorrect-preview");
+  }
+  applyAutocorrect() {
+    if (this.fullscreen || !this.autocorrectPreview) return 0;
+    this.prepare();
+    const preview = this.autocorrectPreview;
+    if (preview.version !== this.model.version) {
+      this.autocorrectPreview = null;
+      this.status = {
+        text: "Трек изменился. Запустите предпросмотр заново.",
+        error: true,
+      };
+      this.emit("autocorrect-preview");
+      return 0;
+    }
+    this.autocorrectPreview = null;
+    this.model.lastAutoRemoved = new Set(preview.nodes);
+    const count = this.model.remove(preview.indices, true);
     this.status = {
       text: `Автокоррекция: удалено точек — ${count}. Соседние корректные точки соединены прямыми отрезками. Изменение можно отменить.`,
       error: false,
     };
     this.emit("load");
+    return count;
   }
   download() {
     if (!this.model.points.length) return;

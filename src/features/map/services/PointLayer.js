@@ -4,10 +4,17 @@ const POINT_RADIUS = 4;
 const VIEWPORT_PADDING = 12;
 
 export class PointLayer {
-  constructor(map, container, model, getActiveIndex) {
+  constructor(
+    map,
+    container,
+    model,
+    getActiveIndex,
+    getPreviewIndices = () => null,
+  ) {
     this.map = map;
     this.model = model;
     this.getActiveIndex = getActiveIndex;
+    this.getPreviewIndices = getPreviewIndices;
     this.projected = [];
     this.grid = new Map();
     this.world = [];
@@ -80,16 +87,27 @@ export class PointLayer {
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.clearRect(0, 0, size.x, size.y);
     const active = this.getActiveIndex();
-    for (const chosen of [false, true]) {
+    const preview = this.getPreviewIndices();
+    const styles = [
+      { kind: "normal", fill: "#fff", stroke: "#426e4d" },
+      { kind: "selected", fill: "#e59a7d", stroke: "#b96550" },
+      { kind: "preview", fill: "#f6b94a", stroke: "#8d4c08" },
+    ];
+    for (const style of styles) {
       ctx.beginPath();
       for (const point of this.projected) {
-        if (this.model.selected.has(point.i) !== chosen || active === point.i)
-          continue;
-        ctx.moveTo(point.x + POINT_RADIUS, point.y);
-        ctx.arc(point.x, point.y, POINT_RADIUS, 0, 2 * Math.PI);
+        const kind = preview?.has(point.i)
+          ? "preview"
+          : this.model.selected.has(point.i)
+            ? "selected"
+            : "normal";
+        if (kind !== style.kind || active === point.i) continue;
+        const radius = kind === "preview" ? 5 : POINT_RADIUS;
+        ctx.moveTo(point.x + radius, point.y);
+        ctx.arc(point.x, point.y, radius, 0, 2 * Math.PI);
       }
-      ctx.fillStyle = chosen ? "#e59a7d" : "#fff";
-      ctx.strokeStyle = chosen ? "#b96550" : "#426e4d";
+      ctx.fillStyle = style.fill;
+      ctx.strokeStyle = style.stroke;
       ctx.lineWidth = 1.5;
       ctx.fill();
       ctx.stroke();

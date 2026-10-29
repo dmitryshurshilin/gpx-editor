@@ -1,3 +1,4 @@
+import { AutocorrectPanel } from "./AutocorrectPanel.jsx";
 import { useEditor, useEditorSnapshot } from "../model/EditorContext.jsx";
 
 export function EditingPanel() {
@@ -13,22 +14,7 @@ export function EditingPanel() {
         Нажмите на линию, чтобы добавить точку. Перетащите точку, чтобы изменить
         маршрут. Дважды нажмите на точку для удаления или включите выделение.
       </p>
-      <button
-        id="autocorrect"
-        onClick={() => editor.autocorrect()}
-        className="autocorrect"
-        disabled={!state.canAutocorrect}
-      >
-        ✦ Автокоррекция · 500 м
-      </button>
-      <p className="auto-warning">
-        <span aria-hidden="true">⚠</span> Автокоррекция не всегда работает
-        точно. Проверьте результат на карте.
-      </p>
-      <p className="auto-help">
-        Находит вылет между двумя скачками больше 500 м. Возврат подтверждается
-        следующим интервалом меньше 500 м.
-      </p>
+      <AutocorrectPanel />
       <div className="mode-switch">
         <button
           id="pan"

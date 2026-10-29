@@ -78,6 +78,10 @@ test("autocorrection removes the complete excursion and retains first returning 
   assert.equal(store.model.points.length, 113);
   const returnNode = store.model.points[54].node;
   store.autocorrect();
+  assert.equal(store.model.points.length, 113);
+  assert.equal(store.model.serialize(), original);
+  assert.equal(store.getSnapshot().autocorrectPreview.pointCount, 3);
+  store.applyAutocorrect();
   assert.equal(store.model.points.length, 110);
   assert.equal(store.model.lastAutoRemoved.size, 3);
   assert.equal(store.model.points[51].node, returnNode);

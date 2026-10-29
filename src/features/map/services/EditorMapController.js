@@ -1,4 +1,5 @@
 import L from "leaflet";
+import { AutocorrectPreviewLayer } from "./AutocorrectPreviewLayer.js";
 import { PointLayer } from "./PointLayer.js";
 import { BasemapLayers } from "./BasemapLayers.js";
 import { createPointInteractions } from "./PointInteractions.js";
@@ -27,7 +28,11 @@ export function createEditorMapController(container, editor) {
     container,
     state,
     () => interactions?.activeIndex,
+    () => editor.autocorrectPreview?.indices,
   );
+  const correctionLayer = new AutocorrectPreviewLayer(map, L);
+  const syncCorrectionPreview = () =>
+    correctionLayer.render(editor.autocorrectPreview?.fragments);
   const projectPoints = () => pointLayer.project(),
     paintPoints = () => pointLayer.paint();
   const message = (text, error = false) => editor.setStatus(text, error);
@@ -97,6 +102,7 @@ export function createEditorMapController(container, editor) {
     editor.insert(next, position);
   }
   function refresh() {
+    syncCorrectionPreview();
     if (layers) {
       layers.clearLayers();
       routeLines = state.groups.map((group) =>
@@ -125,6 +131,10 @@ export function createEditorMapController(container, editor) {
       }
       if (editor.fullscreen) {
         editor.setFullscreen(false);
+        return;
+      }
+      if (editor.autocorrectPreview) {
+        editor.cancelAutocorrectPreview();
         return;
       }
       interactions.reset();
@@ -157,7 +167,13 @@ export function createEditorMapController(container, editor) {
         interactions.reset();
         refresh();
         break;
+      case "autocorrect-preview":
+        syncCorrectionPreview();
+        projectPoints();
+        paintPoints();
+        break;
       case "move":
+        syncCorrectionPreview();
         projectPoints();
         paintPoints();
         break;
@@ -213,6 +229,7 @@ export function createEditorMapController(container, editor) {
       cancelAnimationFrame(viewFrame);
       screenshot.destroy();
       interactions.destroy();
+      correctionLayer.destroy();
       pointLayer.destroy();
       map.remove();
       editor.setMapReady(false);

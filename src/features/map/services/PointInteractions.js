@@ -94,6 +94,7 @@ export function createPointInteractions({
         y = e.clientY - rect.top,
         index = pointAt(x, y);
       if (index === null) return;
+      editor.cancelAutocorrectPreview?.(true);
       e.preventDefault();
       e.stopImmediatePropagation();
       const p = state.points[index],
