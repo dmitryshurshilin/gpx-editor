@@ -1287,9 +1287,11 @@ dialog::backdrop {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 10px 12px;
-  font-size: 12px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  flex-shrink: 0;
+  align-self: center;
   color: #314b3b;
   background: #fff;
   border-color: #b8c5bb;
@@ -1358,10 +1360,6 @@ dialog::backdrop {
     padding: 8px 10px;
     font-size: 11px;
   }
-  #map-screenshot {
-    font-size: 11px;
-    padding: 9px;
-  }
   .capture-instruction,
   .capture-feedback {
     font-size: 11px;
@@ -1370,14 +1368,6 @@ dialog::backdrop {
 
 .basemap-switch {
   flex-shrink: 0;
-}
-#map-screenshot {
-  min-width: 0;
-}
-.screenshot-button-label {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 @media (max-width: 520px) {
   .map-floating-tools {

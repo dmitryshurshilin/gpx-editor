@@ -48,6 +48,7 @@ export function MapPanel() {
         <div className="map-floating-tools">
           <button
             id="map-screenshot"
+            aria-label="Скриншот области"
             className={state.capture.active ? "active" : ""}
             onClick={() => editor.command("capture")}
             aria-pressed={state.capture.active}
@@ -66,7 +67,6 @@ export function MapPanel() {
               <path d="M9 5 7 8H3v12h18V8h-4l-2-3Z" />
               <circle cx="12" cy="14" r="4" />
             </svg>
-            <span className="screenshot-button-label">Скриншот области</span>
           </button>
           <div
             className="basemap-switch"
