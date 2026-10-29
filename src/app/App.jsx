@@ -9,6 +9,7 @@ import {
   useEditor,
   useEditorSnapshot,
 } from "../features/editor/model/EditorContext.jsx";
+import { Footer } from "./Footer.jsx";
 import { Header } from "./Header.jsx";
 import { HelpDialog } from "./HelpDialog.jsx";
 export function App() {
@@ -69,9 +70,7 @@ function EditorApp() {
         >
           {state.status.text}
         </div>
-        <footer>
-          <span>GPX Editor</span>
-        </footer>
+        <Footer />
       </main>
       <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
     </>

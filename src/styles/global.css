@@ -384,7 +384,7 @@ textarea::placeholder {
   color: #a0aca2;
 }
 
-footer > span:first-child {
+.app-footer strong {
   font-weight: 700;
   font-size: 13px;
 }
@@ -541,10 +541,6 @@ footer > span:first-child {
 
   .code-footer span:first-child {
     max-width: 70%;
-  }
-
-  footer > span:last-child {
-    display: none;
   }
 
   .mode-switch {
@@ -958,12 +954,18 @@ dialog,
   color: #9aa59b;
 }
 
-footer {
+.app-footer {
   padding: 20px 0;
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   color: #8b978e;
-  font-size: 10px;
+}
+
+.app-version {
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 dialog::backdrop {

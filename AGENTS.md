@@ -8,3 +8,7 @@
 - Use Node.js 20.19+ or 22.12+. Run `npm test`, `npm run build`, and `npm run format:check` before committing.
 - After every batch of code changes, regenerate the production build with `npm run build`. Keep `dist/` up to date and prepare a fresh build for publication with every code task.
 - Use Semantic Commit Messages, such as `fix: ...` or `feat: ...`.
+
+- Version each new improvement using SemVer: minor for backward-compatible new features, patch for fixes and visual refinements, major for incompatible changes.
+- Keep the visible version and update date sourced from `package.json` (`version` and ISO `releaseDate`). Update the version in `package-lock.json` too; use the user's local calendar date for the release date, not the build time.
+- For a numbered user request, implement each numbered item in its own commit. Include that item's version/date update and fresh production build in its workflow.

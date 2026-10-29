@@ -1,6 +1,6 @@
 {
   "name": "gpx-editor",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -24,5 +24,6 @@
     "@vitejs/plugin-react": "6.1.2",
     "prettier": "3.9.10",
     "@xmldom/xmldom": "0.9.12"
-  }
+  },
+  "releaseDate": "2026-10-29"
 }
