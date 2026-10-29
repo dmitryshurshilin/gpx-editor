@@ -1,3 +1,4 @@
+import { PointerGesture } from "./PointerGesture.js";
 import { saveBlob } from "../../../shared/lib/download.js";
 const MAX_PIXELS = 16000000;
 const MIN_SELECTION = 32;
@@ -196,13 +197,8 @@ export class MapScreenshot {
     instruction.textContent = "Выделите область для PNG · Esc — отмена";
     this.overlay.append(instruction);
     this.container.append(this.overlay);
+    this.gesture = new PointerGesture(this.overlay);
     this.overlay.addEventListener("pointerdown", (e) => this.pointerDown(e));
-    this.overlay.addEventListener("pointermove", (e) => this.pointerMove(e));
-    this.overlay.addEventListener("pointerup", (e) => this.pointerUp(e));
-    this.overlay.addEventListener("pointercancel", () => this.cancel());
-    this.overlay.addEventListener("lostpointercapture", (e) => {
-      if (this.pointer === e.pointerId) this.cancel();
-    });
     this.overlay.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -224,12 +220,16 @@ export class MapScreenshot {
     this.startPoint = this.position(e);
     this.endPoint = this.startPoint;
     this.pointer = e.pointerId;
-    this.overlay.setPointerCapture(this.pointer);
     this.box?.remove();
     this.box = document.createElement("div");
     this.box.className = "capture-box";
     this.overlay.append(this.box);
     this.paintBox();
+    this.gesture.start(e, {
+      onMove: (event) => this.pointerMove(event),
+      onEnd: (event) => this.pointerUp(event, e.pointerId),
+      onCancel: () => this.cancel(),
+    });
   }
 
   pointerMove(e) {
@@ -259,14 +259,13 @@ export class MapScreenshot {
     });
   }
 
-  async pointerUp(e) {
-    if (e.pointerId !== this.pointer) return;
+  async pointerUp(e, pointerId = e.pointerId) {
+    if (pointerId !== this.pointer) return;
     e.preventDefault();
     e.stopPropagation();
-    const pointer = this.pointer;
     this.pointer = null;
-    if (this.overlay.hasPointerCapture(pointer))
-      this.overlay.releasePointerCapture(pointer);
+    if (this.boxFrame) cancelAnimationFrame(this.boxFrame);
+    this.boxFrame = 0;
     this.endPoint = this.position(e);
     this.paintBox();
     const crop = selectionRect(
@@ -327,10 +326,9 @@ export class MapScreenshot {
     this.session++;
     if (this.boxFrame) cancelAnimationFrame(this.boxFrame);
     this.boxFrame = 0;
-    const pointer = this.pointer;
     this.pointer = null;
-    if (pointer !== null && this.overlay.hasPointerCapture(pointer))
-      this.overlay.releasePointerCapture(pointer);
+    this.gesture?.destroy();
+    this.gesture = null;
     this.overlay.remove();
     this.overlay = null;
     this.box = null;

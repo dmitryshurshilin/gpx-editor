@@ -193,6 +193,7 @@ export function createEditorMapController(container, editor) {
   });
   interactions = createPointInteractions({
     map,
+    leaflet: L,
     container,
     editor,
     pointLayer,

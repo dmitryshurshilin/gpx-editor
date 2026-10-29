@@ -1,9 +1,10 @@
-import L from "leaflet";
+import { PointerGesture } from "./PointerGesture.js";
 import { RouteEditPreview } from "./RouteEditPreview.js";
 
 // Pointer gestures mutate only the live preview until the user releases it.
 export function createPointInteractions({
   map,
+  leaflet,
   container,
   editor,
   pointLayer,
@@ -30,9 +31,9 @@ export function createPointInteractions({
   const deletePoints = (indices) => editor.remove(indices);
   let start = null,
     box = null,
-    pointer = null,
     boxFrame = 0,
     boxEnd = null;
+  const selectionGesture = new PointerGesture(container);
   let dragFrame = 0;
   function renderDrag() {
     dragFrame = 0;
@@ -115,7 +116,7 @@ export function createPointInteractions({
         handle,
         editPreview: new RouteEditPreview(
           map,
-          L,
+          leaflet,
           p.group ? getRouteLines()[state.groups.indexOf(p.group)] : null,
           p.group,
           p.groupIndex,
@@ -229,11 +230,14 @@ export function createPointInteractions({
       e.stopPropagation();
       const rect = container.getBoundingClientRect();
       start = { x: e.clientX - rect.left, y: e.clientY - rect.top, rect };
-      pointer = e.pointerId;
-      container.setPointerCapture(pointer);
       box = document.createElement("div");
       box.className = "selection-box";
       container.append(box);
+      selectionGesture.start(e, {
+        onMove: moveBox,
+        onEnd: finishBox,
+        onCancel: clearBox,
+      });
     },
     { capture: true },
   );
@@ -249,56 +253,44 @@ export function createPointInteractions({
       height: Math.abs(y - start.y) + "px",
     });
   }
-  listen(container, "pointermove", (e) => {
-    if (!start || e.pointerId !== pointer) return;
+  function moveBox(e) {
     const rect = start.rect;
     boxEnd = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     if (!boxFrame) boxFrame = requestAnimationFrame(renderBox);
-  });
-  function cancelBox() {
-    if (boxFrame) {
-      cancelAnimationFrame(boxFrame);
-      boxFrame = 0;
-    }
+  }
+  function clearBox() {
+    if (boxFrame) cancelAnimationFrame(boxFrame);
+    boxFrame = 0;
     boxEnd = null;
-    const captured = pointer;
-    if (box) box.remove();
+    box?.remove();
     box = null;
     start = null;
-    pointer = null;
-    if (captured !== null && container.hasPointerCapture(captured))
-      container.releasePointerCapture(captured);
   }
-  listen(
-    container,
-    "pointerup",
-    (e) => {
-      if (!start || e.pointerId !== pointer) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const rect = start.rect,
-        end = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-      const indices = [];
-      if (Math.abs(start.x - end.x) > 3 || Math.abs(start.y - end.y) > 3) {
-        const minX = Math.min(start.x, end.x),
-          maxX = Math.max(start.x, end.x),
-          minY = Math.min(start.y, end.y),
-          maxY = Math.max(start.y, end.y);
-        projectPoints();
-        pointLayer.projected.forEach((pt) => {
-          if (pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY)
-            indices.push(pt.i);
-        });
+  function cancelBox() {
+    selectionGesture.cancel();
+    clearBox();
+  }
+  function finishBox(e) {
+    if (!start) return;
+    const rect = start.rect,
+      end = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const indices = [];
+    if (Math.abs(start.x - end.x) > 3 || Math.abs(start.y - end.y) > 3) {
+      const minX = Math.min(start.x, end.x),
+        maxX = Math.max(start.x, end.x),
+        minY = Math.min(start.y, end.y),
+        maxY = Math.max(start.y, end.y);
+      projectPoints();
+      for (const pt of pointLayer.projected) {
+        if (pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY)
+          indices.push(pt.i);
       }
-      cancelBox();
-      editor.selectIndices(indices);
-    },
-    { capture: true },
-  );
-  listen(container, "pointercancel", cancelBox);
+    }
+    clearBox();
+    editor.selectIndices(indices);
+  }
   listen(container, "lostpointercapture", (e) => {
     if (activeDrag?.pointer === e.pointerId) cancelDrag(true);
-    if (pointer === e.pointerId) cancelBox();
   });
 
   function reset() {
