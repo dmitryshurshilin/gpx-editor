@@ -1417,3 +1417,45 @@ dialog::backdrop {
   background: none;
   border-top: 2px dashed #245c3b;
 }
+
+.autocorrect-threshold {
+  margin: 0 0 12px;
+}
+.autocorrect-threshold label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #41534a;
+  margin-bottom: 6px;
+}
+.autocorrect-threshold input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid #c9d7cc;
+  border-radius: 4px;
+  background: #fff;
+  color: #314b3b;
+  font: inherit;
+  font-size: 13px;
+}
+.autocorrect-threshold input:focus-visible {
+  outline: 3px solid #a8c4ac;
+  outline-offset: 2px;
+}
+.autocorrect-threshold input[aria-invalid="true"] {
+  border-color: #b96550;
+}
+.autocorrect-threshold small {
+  display: block;
+  font-size: 10px;
+  color: #78897c;
+  margin-top: 5px;
+}
+#autocorrect-threshold-error {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #9b3a2a;
+  margin: 6px 0 0;
+}

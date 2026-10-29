@@ -15,6 +15,7 @@ export class EditorStore {
   constructor() {
     this.model = new TrackModel();
     this.autocorrectPreview = null;
+    this.autocorrectThresholdInput = "500";
     this.mode = "pan";
     this.fullscreen = false;
     this.basemap = "street";
@@ -61,9 +62,15 @@ export class EditorStore {
         ? Object.freeze({
             pointCount: this.autocorrectPreview.nodes.size,
             fragmentCount: this.autocorrectPreview.fragments.length,
+            threshold: this.autocorrectPreview.threshold,
           })
         : null,
-      canAutocorrect: model.groups.some((group) => group.length > 1),
+      autocorrectThresholdInput: this.autocorrectThresholdInput,
+      autocorrectThreshold: this.autocorrectThreshold,
+      autocorrectThresholdValid: this.autocorrectThreshold !== null,
+      canAutocorrect:
+        this.autocorrectThreshold !== null &&
+        model.groups.some((group) => group.length > 1),
       mode: this.mode,
       fullscreen: this.fullscreen,
       basemap: this.basemap,
@@ -228,10 +235,33 @@ export class EditorStore {
     this.status = { text: "Последнее изменение отменено.", error: false };
     this.emit("geometry");
   }
+  get autocorrectThreshold() {
+    const value = Number(this.autocorrectThresholdInput);
+    return Number.isSafeInteger(value) && value > 0 ? value : null;
+  }
+  setAutocorrectThreshold(value) {
+    const input = String(value);
+    if (input === this.autocorrectThresholdInput) return;
+    this.prepare();
+    const hadPreview = !!this.autocorrectPreview;
+    this.autocorrectThresholdInput = input;
+    this.autocorrectPreview = null;
+    if (hadPreview)
+      this.status = {
+        text: "Порог изменён. Запустите предпросмотр заново.",
+        error: false,
+      };
+    this.emit("autocorrect-preview");
+  }
   autocorrect() {
     if (!this.model.doc || this.fullscreen) return;
+    const threshold = this.autocorrectThreshold;
+    if (threshold === null) {
+      this.setStatus("Укажите целое число метров больше нуля.", true);
+      return;
+    }
     this.prepare();
-    const nodes = findJumpPoints(this.model.groups, distanceBetween, 500);
+    const nodes = findJumpPoints(this.model.groups, distanceBetween, threshold);
     this.autocorrectPreview = null;
     if (!nodes.size) {
       this.status = {
@@ -248,6 +278,7 @@ export class EditorStore {
         nodes,
         indices,
         fragments,
+        threshold,
         version: this.model.version,
       };
       this.status = {
@@ -271,7 +302,10 @@ export class EditorStore {
     if (this.fullscreen || !this.autocorrectPreview) return 0;
     this.prepare();
     const preview = this.autocorrectPreview;
-    if (preview.version !== this.model.version) {
+    if (
+      preview.version !== this.model.version ||
+      preview.threshold !== this.autocorrectThreshold
+    ) {
       this.autocorrectPreview = null;
       this.status = {
         text: "Трек изменился. Запустите предпросмотр заново.",
